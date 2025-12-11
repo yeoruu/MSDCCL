@@ -45,7 +45,7 @@ def main(
     # dataset splitting
     train_data, valid_data, test_data = data_preparation(config, dataset)
     # config['total_train_examples'] = train_data.sample_size
-    config['total_train_examples'] = train_data.pr_end
+    config['total_train_examples'] = len(train_data)
 
     # model loading and initialization
     model_class = get_model(config_dict['model_name'])

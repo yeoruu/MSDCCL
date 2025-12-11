@@ -1,7 +1,7 @@
 #General Hyper Parameters:
-# gpu_id: '0,1,2,3,4,5,6,7'
-use_gpu: True
-
+# gpu_id: '0,1,2,3,4,5,6,7' 
+use_gpu: False
+distributed: False
 #Training Hyper Parameters:
 epochs: 300
 learner: adam
@@ -46,6 +46,6 @@ metric_decimal_place: 4
 initializer_range: 0.02
 
 # 用于加速模型
-enable_amp: True
-enable_scaler: True
-worker: 8
+enable_amp: False # cpu 쓰려고 고침 
+enable_scaler: False # cpu 쓰려고 고침 
+worker: 0

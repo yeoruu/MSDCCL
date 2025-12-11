@@ -5,7 +5,8 @@ import torch.autograd as autograd
 import torch.optim as optim
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from tqdm import tqdm
-from transformers import WarmupLinearSchedule
+from transformers import get_linear_schedule_with_warmup as WarmupLinearSchedule
+
 from recbole.data.interaction import Interaction
 from recbole.data.dataloader import FullSortEvalDataLoader
 from recbole.evaluator import Evaluator, Collector
@@ -19,26 +20,35 @@ class MsdcclTrainer(Trainer):
     def __init__(self, config, model):
         super(MsdcclTrainer, self).__init__(config, model)
 
-        # 加入scheduler
-        if self.config['scheduler']:
-            warm_up_ratio = self.config['warm_up_ratio']
-            total_train_examples = self.config['total_train_examples']
-            train_batch_size = self.config['train_batch_size']
-            total_steps = int(total_train_examples / train_batch_size)
-            self.scheduler = WarmupLinearSchedule(
-                self.optimizer,
-                warmup_steps=warm_up_ratio * total_steps,
-                t_total=total_steps)
-        else:
-            self.scheduler = False
+        # scheduler는 fit()에서 생성할 것이므로 초기값 None
+        self.scheduler = None
 
         self.global_train_batches = 0
-        self.gumbel_tau = self.config['gumbel_temperature']  # 初始化为0.5
-        self.spu_cl_tau = self.config['supervised_contrastive_temperature']  # 初始化为0.2
+        self.gumbel_tau = self.config['gumbel_temperature']
+        self.spu_cl_tau = self.config['supervised_contrastive_temperature']
         self.gumbel_tau_anneal = self.config['is_gumbel_tau_anneal']
         self.spu_cl_tau_anneal = self.config['is_spu_cl_tau_anneal']
         self.curriculum_learn_epoch = self.config['curriculum_learn_epoch']
         self.sigmoid_extent = self.config['sigmoid_extent']
+
+    def fit(self, train_data, valid_data=None, **kwargs):
+
+        # ===== Warmup Scheduler 생성 =====
+        if self.config['scheduler']:
+            t_total = self.config["epochs"] * len(train_data)
+            warmup_steps = int(t_total * self.config['warm_up_ratio'])
+
+            self.scheduler = WarmupLinearSchedule(
+                optimizer=self.optimizer,
+                num_warmup_steps=warmup_steps,
+                num_training_steps=t_total
+            )
+        else:
+            self.scheduler = None
+        # =================================
+
+        return super().fit(train_data, valid_data, **kwargs)
+
 
     def _build_optimizer(self, **kwargs):
         r"""Init the Optimizer
@@ -124,7 +134,7 @@ class MsdcclTrainer(Trainer):
         """
         self.model.train()
 
-        # 在这判断是否使用本模型的loss还是baseline模型的loss
+        # 여기서 본 모델의 loss를 사용할지, 아니면 baseline 모델의 loss를 사용할지를 판단한다
         if 'MSDCCL' in str(self.model):
             loss_func = self.model.calculate_reweight_loss
         else:
