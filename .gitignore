@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+
+log/
+log_tensorboard/
+saved/
+datasets/
+
+# recbole cache
+*.pkl
+*.pth
+
+# MacOS junk
+.DS_Store
